@@ -55,7 +55,11 @@ class DbtRunnerTab(
         toolTipText = "Compile current model (dbt compile --select)"
     }
 
-    private val generateButton = JButton("Docs").apply {
+    private val previewButton = JButton("Preview").apply {
+        toolTipText = "Preview current model or selection (dbt show)"
+    }
+
+    private val generateButton = JButton("Generate Docs").apply {
         toolTipText = "Run dbt docs generate"
     }
 
@@ -92,6 +96,7 @@ class DbtRunnerTab(
             add(fullRefreshCheckBox)
             add(testButton)
             add(compileButton)
+            add(previewButton)
             add(JSeparator(SwingConstants.VERTICAL).apply { preferredSize = Dimension(2, 20) })
             add(generateButton)
             add(clearButton)
@@ -103,6 +108,7 @@ class DbtRunnerTab(
         runButton.addActionListener { runCurrentModel() }
         testButton.addActionListener { testCurrentModel() }
         compileButton.addActionListener { compileCurrentModel() }
+        previewButton.addActionListener { previewCurrentModel() }
 
         // Update full-refresh visibility when current model changes
         val connection = project.messageBus.connect(this)
@@ -264,6 +270,37 @@ class DbtRunnerTab(
         logArea.append("\n--- Process terminated ---\n")
     }
 
+    private fun previewCurrentModel() {
+        val file = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project)
+            .selectedFiles.firstOrNull()
+        if (file == null) {
+            logArea.text = "No file open.\n"
+            return
+        }
+        val service = com.dbthelper.core.ManifestService.getInstance(project)
+        val modelId = service.findCurrentModelId(file)
+        val node = modelId?.let { service.getIndex().nodes[it] }
+
+        // Detect text selection in the active editor
+        val editor = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).selectedTextEditor
+        val selectedText = editor?.selectionModel?.selectedText?.takeIf { it.isNotBlank() }
+
+        val modelName: String?
+        val inlineSql: String?
+        if (selectedText != null) {
+            modelName = null
+            inlineSql = selectedText
+        } else {
+            modelName = node?.name
+            inlineSql = null
+        }
+        if (modelName == null && inlineSql == null) {
+            logArea.text = "No model resolved for current file. Generate docs first or select SQL.\n"
+            return
+        }
+        runPreview(modelName, inlineSql)
+    }
+
     fun runPreview(modelName: String?, inlineSql: String?) {
         if (isRunning) return
         setRunning(true)
@@ -373,6 +410,10 @@ class DbtRunnerTab(
     private fun setRunning(running: Boolean) {
         isRunning = running
         generateButton.isEnabled = !running
+        runButton.isEnabled = !running
+        testButton.isEnabled = !running
+        compileButton.isEnabled = !running
+        previewButton.isEnabled = !running
         stopButton.isEnabled = running
         if (!running) currentProcess = null
     }

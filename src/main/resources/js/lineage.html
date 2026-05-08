@@ -22,6 +22,30 @@
             --btn-hover: #3d3d3d;
             --edge-color: #555;
             --loading-color: #888;
+            --card-bg: #2a2a2a;
+            --card-border: #3a3a3a;
+            --card-name: #eee;
+            --card-schema: #888;
+            --card-icon-bg: #1f1f1f;
+            --card-icon-fg: #aaa;
+            --card-selected-bg: rgba(33, 150, 243, 0.18);
+            --card-selected-border: #2196F3;
+            --stub-bg: #252525;
+            --stub-border: #444;
+            --stub-text: #888;
+        }
+        body.theme-light {
+            --card-bg: #ffffff;
+            --card-border: #e0e0e0;
+            --card-name: #1f1f1f;
+            --card-schema: #888;
+            --card-icon-bg: #f3f5f8;
+            --card-icon-fg: #666;
+            --card-selected-bg: #eaf3ff;
+            --card-selected-border: #2196F3;
+            --stub-bg: #f3f4f6;
+            --stub-border: #d0d3d8;
+            --stub-text: #888;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
@@ -110,10 +134,336 @@
             text-align: center;
         }
         #search-clear:hover { color: var(--btn-text); }
+
+        /* HTML node overlay */
+        #node-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 10;
+        }
+        .card-node {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            will-change: transform;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 0 8px 8px 0;
+            padding: 8px 12px 8px 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            cursor: pointer;
+            pointer-events: auto;
+            box-sizing: border-box;
+            overflow: hidden;
+            transform-origin: top left;
+            user-select: none;
+        }
+        .card-node .card-bar {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            background: var(--card-bar-color, #888);
+        }
+        .card-node .card-icon {
+            flex: 0 0 auto;
+            width: 28px;
+            height: 28px;
+            margin-left: 14px;
+            margin-right: 10px;
+            border-radius: 5px;
+            background: var(--card-icon-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--card-icon-fg);
+        }
+        .card-node .card-icon svg { width: 16px; height: 16px; display: block; }
+        .card-node .card-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .card-node .card-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--card-name);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-node .card-schema {
+            font-size: 11px;
+            font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+            color: var(--card-schema);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-node.selected {
+            background: var(--card-selected-bg);
+            border-color: var(--card-selected-border);
+            box-shadow: 0 0 0 1px var(--card-selected-border) inset;
+        }
+        .card-node.dimmed { opacity: 0.3; }
+        .card-node.stub {
+            background: var(--stub-bg);
+            border: 1px dashed var(--stub-border);
+            border-radius: 8px;
+            color: var(--stub-text);
+            padding: 8px 14px;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .card-node.stub .card-icon { display: none; }
+        .card-node.stub .card-bar { display: none; }
+        .card-node.stub .card-name { color: var(--stub-text); font-weight: 500; }
+
+        /* Docs sidebar */
+        #docs-sidebar {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 30vw;
+            min-width: 280px;
+            max-width: 80vw;
+            background: var(--card-bg);
+            border-left: 1px solid var(--card-border);
+            display: none;
+            flex-direction: column;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            font-size: 13px;
+            color: var(--card-name);
+            z-index: 50;
+            overflow: hidden;
+        }
+        #docs-sidebar.open { display: flex; }
+        #docs-sidebar .resize-handle {
+            position: absolute;
+            left: -3px; top: 0; bottom: 0;
+            width: 6px;
+            cursor: ew-resize;
+            z-index: 60;
+            background: transparent;
+        }
+        #docs-sidebar .resize-handle:hover { background: var(--card-selected-border); opacity: 0.4; }
+        .docs-header {
+            padding: 48px 16px 10px;
+            border-bottom: 1px solid var(--card-border);
+            position: relative;
+        }
+        .docs-header .docs-title-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding-right: 24px;
+        }
+        .docs-header .docs-icon {
+            flex: 0 0 auto;
+            width: 26px; height: 26px;
+            background: var(--card-icon-bg);
+            color: var(--card-icon-fg);
+            border-radius: 5px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .docs-header .docs-icon svg { width: 16px; height: 16px; }
+        .docs-header .docs-title { flex: 1 1 auto; min-width: 0; }
+        .docs-header .docs-name { font-size: 14px; font-weight: 700; color: var(--card-name); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .docs-header .docs-schema { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; color: var(--card-schema); margin-top: 2px; }
+        .docs-close {
+            position: absolute;
+            top: 12px; left: 12px;
+            width: 22px; height: 22px;
+            border: none;
+            background: transparent;
+            color: var(--card-schema);
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 18px;
+            border-radius: 4px;
+        }
+        .docs-close:hover { background: var(--card-icon-bg); color: var(--card-name); }
+        .docs-description {
+            padding: 12px 16px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--card-name);
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .docs-description.empty { display: none; }
+        .docs-description .desc-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            white-space: pre-wrap;
+        }
+        .docs-description .desc-text.collapsed {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .docs-description .desc-toggle {
+            flex: 0 0 auto;
+            background: transparent;
+            border: none;
+            color: var(--card-schema);
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 3px;
+            margin-top: 1px;
+            display: none;
+        }
+        .docs-description.has-overflow .desc-toggle { display: flex; align-items: center; }
+        .docs-description .desc-toggle svg { width: 12px; height: 12px; transition: transform 0.15s; }
+        .docs-description.expanded .desc-toggle svg { transform: rotate(180deg); }
+        .docs-description .desc-toggle:hover { background: var(--card-icon-bg); color: var(--card-name); }
+        .docs-pills {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            padding: 10px 16px 12px;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .docs-pill.tag { background: var(--card-selected-bg); border-color: var(--card-selected-border); color: var(--card-selected-border); }
+        .docs-pill {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+            background: var(--card-icon-bg);
+            color: var(--card-name);
+            border: 1px solid var(--card-border);
+        }
+        .docs-pill.tests-ok { color: #2e7d32; border-color: rgba(76, 175, 80, 0.35); }
+        body.theme-light .docs-pill.tests-ok { background: #e8f5e9; }
+        .docs-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--card-border);
+            padding: 0 12px;
+            gap: 4px;
+        }
+        .docs-tab {
+            padding: 10px 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--card-schema);
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            margin-bottom: -1px;
+            font-family: inherit;
+        }
+        .docs-tab.active { color: var(--card-name); border-bottom-color: var(--card-selected-border); font-weight: 600; }
+        .docs-content {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0;
+            min-height: 0;
+            overscroll-behavior: contain;
+            contain: strict;
+            transform: translateZ(0);
+        }
+        .docs-content .docs-section { contain: content; }
+        .docs-content .col-row { contain: layout style; }
+        .docs-content .docs-section { display: none; padding: 8px 0; }
+        .docs-content .docs-section.active { display: block; }
+        .docs-content .col-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--card-schema);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .docs-content .col-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .docs-content .col-row.selected { background: var(--card-selected-bg); }
+        .docs-content .col-main { flex: 1 1 auto; min-width: 0; }
+        .docs-content .col-name {
+            font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--card-name);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .docs-content .col-pk-badge {
+            background: #ffe6c2;
+            color: #b85c00;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-family: -apple-system, sans-serif;
+        }
+        body:not(.theme-light) .docs-content .col-pk-badge { background: rgba(255, 152, 0, 0.25); color: #ffb74d; }
+        .docs-content .col-fk { font-size: 11px; color: var(--card-schema); margin-top: 2px; font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+        .docs-content .col-desc { font-size: 12px; color: var(--card-schema); margin-top: 2px; }
+        .docs-content .col-type {
+            font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+            font-size: 11px;
+            color: var(--card-schema);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            padding-top: 2px;
+        }
+        .docs-content .docs-list { list-style: none; padding: 0; margin: 0; }
+        .docs-content .docs-list li { padding: 8px 16px; border-bottom: 1px solid var(--card-border); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; }
+        .docs-content pre.code-block {
+            margin: 0;
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+            font-size: 12px;
+            white-space: pre;
+            overflow-x: auto;
+            background: var(--card-icon-bg);
+            color: var(--card-name);
+        }
+        .docs-content .meta-table { width: 100%; border-collapse: collapse; }
+        .docs-content .meta-table td { padding: 6px 16px; border-bottom: 1px solid var(--card-border); font-size: 12px; vertical-align: top; }
+        .docs-content .meta-table td.k { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; color: var(--card-schema); width: 40%; }
+        .docs-content .meta-table td.v { color: var(--card-name); word-break: break-all; }
+        .docs-content .empty { padding: 16px; color: var(--card-schema); font-style: italic; font-size: 12px; }
+
+        #toggle-sidebar.active { background: var(--card-selected-bg); border-color: var(--card-selected-border); }
+        #regenerate-docs.needs-attention {
+            background: var(--card-selected-bg);
+            border-color: var(--card-selected-border);
+            color: var(--card-selected-border);
+            animation: pulse 1.6s ease-in-out infinite;
+        }
+        #regenerate-docs.running { opacity: 0.6; cursor: wait; }
+        #regenerate-docs.running svg { animation: spin 1s linear infinite; }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 var(--card-selected-border); }
+            50%      { box-shadow: 0 0 0 4px transparent; }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div id="cy"></div>
+    <div id="node-overlay"></div>
     <div id="loading" style="color: var(--loading-color)">Waiting for data...</div>
     <div id="tooltip" class="tooltip"></div>
     <div id="search-box">
@@ -121,10 +471,60 @@
         <button id="search-clear" title="Clear">&times;</button>
     </div>
     <div id="controls">
+        <button id="regenerate-docs" title="Regenerate dbt docs">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px;">
+                <path d="M2.5 8a5.5 5.5 0 0 1 9.6-3.7"/>
+                <path d="M12.5 2v3h-3"/>
+                <path d="M13.5 8a5.5 5.5 0 0 1-9.6 3.7"/>
+                <path d="M3.5 14v-3h3"/>
+            </svg>
+        </button>
         <button id="zoom-in" title="Zoom in">+</button>
         <button id="zoom-out" title="Zoom out">−</button>
         <button id="zoom-fit" title="Fit graph">⊡</button>
+        <button id="toggle-sidebar" title="Show docs sidebar">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px;">
+                <rect x="2" y="3" width="12" height="10" rx="1"/>
+                <line x1="10" y1="3" x2="10" y2="13"/>
+                <line x1="11.5" y1="6" x2="13" y2="6"/>
+                <line x1="11.5" y1="8" x2="13" y2="8"/>
+                <line x1="11.5" y1="10" x2="13" y2="10"/>
+            </svg>
+        </button>
     </div>
+
+    <aside id="docs-sidebar">
+        <div class="resize-handle" id="docs-resize"></div>
+        <div class="docs-header">
+            <button class="docs-close" id="docs-close" title="Close">&times;</button>
+            <div class="docs-title-row">
+                <div class="docs-icon" id="docs-icon"></div>
+                <div class="docs-title">
+                    <div class="docs-name" id="docs-name">—</div>
+                    <div class="docs-schema" id="docs-schema"></div>
+                </div>
+            </div>
+        </div>
+        <div class="docs-description" id="docs-description">
+            <div class="desc-text" id="docs-desc-text"></div>
+            <button class="desc-toggle" id="docs-desc-toggle" title="Expand description">
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5l3 3 3-3"/></svg>
+            </button>
+        </div>
+        <div class="docs-pills" id="docs-pills"></div>
+        <div class="docs-tabs">
+            <button class="docs-tab active" data-tab="columns">Columns</button>
+            <button class="docs-tab" data-tab="tests">Tests</button>
+            <button class="docs-tab" data-tab="sql">SQL</button>
+            <button class="docs-tab" data-tab="metadata">Metadata</button>
+        </div>
+        <div class="docs-content">
+            <div class="docs-section active" id="docs-section-columns"></div>
+            <div class="docs-section" id="docs-section-tests"></div>
+            <div class="docs-section" id="docs-section-sql"></div>
+            <div class="docs-section" id="docs-section-metadata"></div>
+        </div>
+    </aside>
     <script src="lineage.js"></script>
 </body>
 </html>

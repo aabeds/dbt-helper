@@ -98,11 +98,6 @@ class DbtHelperConfigurable(private val project: Project) : BoundConfigurable("d
                     .comment("Automatically show the dbt Helper panel when opening a .sql file")
             }
             row {
-                checkBox("Show test nodes in lineage")
-                    .bindSelected(settings.state::showTestNodes)
-                    .comment("Display dbt tests (unique, not_null, etc.) as small nodes attached to models")
-            }
-            row {
                 checkBox("Show exposures in lineage")
                     .bindSelected(settings.state::showExposures)
                     .comment("Display dbt exposures (dashboards, reports) in the lineage graph")

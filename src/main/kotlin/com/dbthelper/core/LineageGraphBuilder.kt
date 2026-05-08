@@ -9,7 +9,6 @@ class LineageGraphBuilder(private val index: ManifestIndex) {
         currentNodeId: String,
         upstreamDepth: Int = 5,
         downstreamDepth: Int = 5,
-        showTestNodes: Boolean = false,
         showExposures: Boolean = true,
         expandedBoundaryNodes: Set<String> = emptySet()
     ): LineageGraph {
@@ -64,10 +63,8 @@ class LineageGraphBuilder(private val index: ManifestIndex) {
             toLineageNode(id, depth, id == currentNodeId)
         }.toMutableList()
 
-        // Filter by settings
-        if (!showTestNodes) {
-            lineageNodes = lineageNodes.filter { it.resourceType != "test" }.toMutableList()
-        }
+        // Tests are never shown as separate cards
+        lineageNodes = lineageNodes.filter { it.resourceType != "test" }.toMutableList()
         if (!showExposures) {
             lineageNodes = lineageNodes.filter { it.resourceType != "exposure" }.toMutableList()
         }

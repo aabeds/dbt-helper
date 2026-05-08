@@ -1,5 +1,7 @@
 package com.dbthelper.toolwindow
 
+import com.dbthelper.actions.DbtCommandRunner
+import com.dbthelper.core.DocsPayloadBuilder
 import com.dbthelper.core.LineageGraphBuilder
 import com.dbthelper.core.ManifestService
 import com.dbthelper.core.ManifestUpdateListener
@@ -63,6 +65,7 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
             override fun onManifestUpdated(index: ManifestIndex) {
                 resolveCurrentModel()
                 refreshGraph()
+                pushRegenerateAttention()
             }
         })
 
@@ -109,10 +112,15 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                         val resourceType = payload.path("resourceType").asText()
                         handleNodeClick(nodeId, resourceType)
                     }
+                    "previewNode" -> {
+                        val nodeId = payload.path("nodeId").asText()
+                        pushDocsToSidebar(nodeId)
+                    }
                     "expandRequest" -> {
                         val boundaryNodeId = payload.path("boundaryNodeId").asText()
                         handleExpandRequest(boundaryNodeId)
                     }
+                    "regenerateDocs" -> handleRegenerateDocs()
                 }
                 JBCefJSQuery.Response("ok")
             } catch (e: Exception) {
@@ -143,6 +151,7 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
 
                     resolveCurrentModel()
                     refreshGraph()
+                    pushRegenerateAttention()
                 }
             }
         }, browser.cefBrowser)
@@ -185,6 +194,7 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
 
     fun onFileChanged(file: VirtualFile) {
         if (isDisposed) return
+        pushRegenerateAttention()
         val service = ManifestService.getInstance(project)
         val index = service.getIndex()
         val modelId = service.findCurrentModelId(file)
@@ -232,7 +242,6 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                     currentNodeId = modelId,
                     upstreamDepth = settings.state.upstreamDepth,
                     downstreamDepth = settings.state.downstreamDepth,
-                    showTestNodes = settings.state.showTestNodes,
                     showExposures = settings.state.showExposures,
                     expandedBoundaryNodes = expandedBoundaryNodes
                 ).copy(edgeCurveStyle = settings.state.edgeCurveStyle, layoutDirection = settings.state.layoutDirection)
@@ -247,6 +256,9 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                 logger.warn("Error building lineage graph", e)
             }
         }
+
+        // Update sidebar to reflect current model
+        pushDocsToSidebar(modelId)
     }
 
     private fun applyCurrentTheme() {
@@ -263,6 +275,9 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
             expandedBoundaryNodes.clear()
             refreshGraph()
         }
+
+        // Push docs payload to the sidebar
+        pushDocsToSidebar(nodeId)
 
         // Also open the file in editor
         ApplicationManager.getApplication().invokeLater {
@@ -281,6 +296,64 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
             val fullPath = "${dbtRoot.path}/$filePath"
             val vFile = LocalFileSystem.getInstance().findFileByPath(fullPath) ?: return@invokeLater
             FileEditorManager.getInstance(project).openFile(vFile, true)
+        }
+    }
+
+    private fun pushDocsToSidebar(nodeId: String) {
+        if (isDisposed) return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                if (isDisposed) return@executeOnPooledThread
+                val service = ManifestService.getInstance(project)
+                val index = service.getIndex()
+                val payload = DocsPayloadBuilder.build(nodeId, index) ?: return@executeOnPooledThread
+                val json = mapper.writeValueAsString(payload)
+                val escaped = json.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+                ApplicationManager.getApplication().invokeLater {
+                    if (!isDisposed) executeJs("showDocs('$escaped')")
+                }
+            } catch (e: Exception) {
+                logger.warn("Error building docs payload", e)
+            }
+        }
+    }
+
+    @Volatile
+    private var regenerateRunning = false
+
+    private fun handleRegenerateDocs() {
+        if (regenerateRunning) return
+        regenerateRunning = true
+        ApplicationManager.getApplication().invokeLater {
+            if (!isDisposed) executeJs("setRegenerateRunning(true)")
+        }
+        val runner = DbtCommandRunner(project)
+        runner.runDocsGenerate(object : DbtCommandRunner.OutputListener {
+            override fun onLine(line: String) {}
+            override fun onProcessStarted(process: Process) {}
+            override fun onFinished(result: DbtCommandRunner.RunResult) {
+                regenerateRunning = false
+                ApplicationManager.getApplication().invokeLater {
+                    if (!isDisposed) executeJs("setRegenerateRunning(false)")
+                }
+            }
+        })
+    }
+
+    private fun pushRegenerateAttention() {
+        if (!isPageReady || isDisposed) return
+        val file = FileEditorManager.getInstance(project).selectedFiles.firstOrNull()
+        val needs = if (file == null) false else {
+            val service = ManifestService.getInstance(project)
+            val locator = service.getLocator()
+            val isInProject = locator.isInsideDbtProject(file)
+            val ext = file.extension?.lowercase()
+            val isModelFile = ext == "sql" && isInProject
+            val resolvedId = service.findCurrentModelId(file)
+            isModelFile && resolvedId == null
+        }
+        ApplicationManager.getApplication().invokeLater {
+            if (!isDisposed) executeJs("setRegenerateNeedsAttention($needs)")
         }
     }
 

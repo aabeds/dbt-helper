@@ -16,10 +16,6 @@ class DbtToolWindowFactory : ToolWindowFactory, DumbAware {
         val lineageContent = contentFactory.createContent(lineageTab, "Lineage", false)
         toolWindow.contentManager.addContent(lineageContent)
 
-        val docsTab = DocsTab(project, toolWindow.disposable)
-        val docsContent = contentFactory.createContent(docsTab, "Docs", false)
-        toolWindow.contentManager.addContent(docsContent)
-
         val runnerTab = DbtRunnerTab(project, toolWindow.disposable)
         val runnerContent = contentFactory.createContent(runnerTab, "Runner", false)
         toolWindow.contentManager.addContent(runnerContent)
@@ -29,8 +25,5 @@ class DbtToolWindowFactory : ToolWindowFactory, DumbAware {
         toolWindow.contentManager.addContent(statusContent)
     }
 
-    override fun shouldBeAvailable(project: Project): Boolean {
-        val locator = DbtProjectLocator(project)
-        return locator.hasDbtProjects()
-    }
+    override fun shouldBeAvailable(project: Project): Boolean = true
 }
