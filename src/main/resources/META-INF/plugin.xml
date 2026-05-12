@@ -121,12 +121,22 @@ for <a href="https://www.getdbt.com/">dbt</a> projects directly into your JetBra
         <lang.documentationProvider language="SQL"
                                     implementationClass="com.dbthelper.codeintel.DbtDocumentationProvider"/>
 
+        <!-- V2 documentation API — drives the no-modifier hover popup in IDEA 2023+.
+             targetProvider (offset-based) runs BEFORE PSI dispatch and is required for
+             DataSpell/PyCharm where the bundled SQL plugin would otherwise hijack hover. -->
+        <platform.backend.documentation.targetProvider
+                implementation="com.dbthelper.codeintel.DbtDocumentationTargetProvider"/>
+        <platform.backend.documentation.psiTargetProvider
+                implementation="com.dbthelper.codeintel.DbtPsiDocumentationTargetProvider"/>
+
         <annotator language="TEXT"
                    implementationClass="com.dbthelper.codeintel.DbtAnnotator"/>
         <annotator language="Jinja2"
                    implementationClass="com.dbthelper.codeintel.DbtAnnotator"/>
         <annotator language="SQL"
                    implementationClass="com.dbthelper.codeintel.DbtAnnotator"/>
+
+        <gotoDeclarationHandler implementation="com.dbthelper.codeintel.DbtGotoDeclarationHandler"/>
 
         <!-- Notifications -->
         <notificationGroup id="dbt Helper" displayType="BALLOON"/>

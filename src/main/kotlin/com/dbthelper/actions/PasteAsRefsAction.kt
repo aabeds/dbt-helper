@@ -2,6 +2,8 @@ package com.dbthelper.actions
 
 import com.dbthelper.core.ManifestService
 import com.dbthelper.core.model.ManifestIndex
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -29,7 +31,16 @@ class PasteAsRefsAction : AnAction("Paste as dbt Refs") {
         val text = clipboard.getTransferData(DataFlavor.stringFlavor) as? String ?: return
 
         val index = ManifestService.getInstance(project).getIndex()
-        if (index === ManifestIndex.EMPTY) return
+        if (index === ManifestIndex.EMPTY) {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("dbt Helper")
+                .createNotification(
+                    "dbt manifest not loaded. Run 'dbt parse' or 'dbt compile' to generate target/manifest.json.",
+                    NotificationType.WARNING
+                )
+                .notify(project)
+            return
+        }
 
         val replaced = replaceRelationsWithRefs(text, index)
 
