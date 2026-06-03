@@ -12,6 +12,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import java.util.Collections
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 
 @Service(Service.Level.PROJECT)
 class ManifestService(private val project: Project) : Disposable {
@@ -20,6 +21,18 @@ class ManifestService(private val project: Project) : Disposable {
     private val mapper = ObjectMapper().registerModule(KotlinModule.Builder().build())
     private val locator = DbtProjectLocator(project)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Coalesces rapid [reparse] calls into at most one pending run after the current parse. */
+    private val reparseSignal = Channel<Unit>(Channel.CONFLATED)
+
+    init {
+        scope.launch {
+            for (@Suppress("UNUSED_PARAMETER") _ in reparseSignal) {
+                if (!isActive) break
+                doParse()
+            }
+        }
+    }
 
     @Volatile
     var cachedIndex: ManifestIndex = ManifestIndex.EMPTY
@@ -57,12 +70,11 @@ class ManifestService(private val project: Project) : Disposable {
     fun getLocator(): DbtProjectLocator = locator
 
     fun reparse() {
-        scope.launch {
-            doParse()
-        }
+        reparseSignal.trySend(Unit)
     }
 
-    private fun doParse() {
+    private suspend fun doParse() {
+        coroutineContext.ensureActive()
         isLoading = true
         lastError = null
         try {
@@ -152,11 +164,14 @@ class ManifestService(private val project: Project) : Disposable {
                 resolvableSourceKeys = sourceKeys
             )
 
+            coroutineContext.ensureActive()
             cachedIndex = index
             logger.info("dbt manifest parsed: ${index.modelCount} models, ${index.sourceCount} sources")
 
             // Notify listeners via message bus
             project.messageBus.syncPublisher(ManifestUpdateListener.TOPIC).onManifestUpdated(index)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             lastError = e.message
             logger.warn("Failed to parse manifest", e)
@@ -326,6 +341,7 @@ class ManifestService(private val project: Project) : Disposable {
     }
 
     override fun dispose() {
+        reparseSignal.close()
         scope.cancel()
     }
 
