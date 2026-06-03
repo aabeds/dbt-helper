@@ -27,8 +27,8 @@ class ManifestService(private val project: Project) : Disposable {
 
     init {
         scope.launch {
-            for (@Suppress("UNUSED_PARAMETER") _ in reparseSignal) {
-                if (!isActive) break
+            while (isActive) {
+                reparseSignal.receive()
                 doParse()
             }
         }
@@ -74,7 +74,7 @@ class ManifestService(private val project: Project) : Disposable {
     }
 
     private suspend fun doParse() {
-        coroutineContext.ensureActive()
+        yield()
         isLoading = true
         lastError = null
         try {
@@ -164,7 +164,7 @@ class ManifestService(private val project: Project) : Disposable {
                 resolvableSourceKeys = sourceKeys
             )
 
-            coroutineContext.ensureActive()
+            yield()
             cachedIndex = index
             logger.info("dbt manifest parsed: ${index.modelCount} models, ${index.sourceCount} sources")
 

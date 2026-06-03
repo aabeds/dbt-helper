@@ -3,6 +3,7 @@ package com.dbthelper.codeintel
 import com.dbthelper.core.ManifestService
 import com.dbthelper.core.model.ManifestIndex
 import com.intellij.codeInsight.completion.*
+import com.intellij.codeInsight.completion.impl.CamelHumpMatcher
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.icons.AllIcons
 import com.intellij.patterns.PlatformPatterns
@@ -45,17 +46,18 @@ class DbtCompletionContributor : CompletionContributor() {
     }
 
     private fun completeRef(prefix: String, index: ManifestIndex, result: CompletionResultSet) {
-        val matcher = result.withPrefixMatcher(prefix)
+        val prefixMatcher = CamelHumpMatcher(prefix, true)
+        val resultSet = result.withPrefixMatcher(prefix)
         val matching = index.nodes.values.asSequence()
             .filter { it.resourceType != "test" }
             .filter { node ->
-                matcher.prefixMatches(node.name) ||
-                    (node.alias != null && matcher.prefixMatches(node.alias!!))
+                prefixMatcher.prefixMatches(node.name) ||
+                    (node.alias != null && prefixMatcher.prefixMatches(node.alias!!))
             }
             .sortedBy { it.name }
             .take(MAX_LOOKUP_ITEMS)
         for (node in matching) {
-            matcher.addElement(
+            resultSet.addElement(
                 LookupElementBuilder.create(node.name)
                     .withTypeText(node.resourceType)
                     .withTailText(" (${node.packageName})", true)
@@ -115,13 +117,14 @@ class DbtCompletionContributor : CompletionContributor() {
         lookupString: (T) -> String,
         toElement: (T) -> LookupElementBuilder
     ) {
-        val matcher = result.withPrefixMatcher(prefix)
+        val prefixMatcher = CamelHumpMatcher(prefix, true)
+        val resultSet = result.withPrefixMatcher(prefix)
         for (item in items
-            .filter { matcher.prefixMatches(lookupString(it)) }
+            .filter { prefixMatcher.prefixMatches(lookupString(it)) }
             .sortedBy(lookupString)
             .take(MAX_LOOKUP_ITEMS)
         ) {
-            matcher.addElement(toElement(item))
+            resultSet.addElement(toElement(item))
         }
     }
 }
