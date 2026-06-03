@@ -129,12 +129,12 @@ for <a href="https://www.getdbt.com/">dbt</a> projects directly into your JetBra
         <platform.backend.documentation.psiTargetProvider
                 implementation="com.dbthelper.codeintel.DbtPsiDocumentationTargetProvider"/>
 
-        <annotator language="TEXT"
-                   implementationClass="com.dbthelper.codeintel.DbtAnnotator"/>
-        <annotator language="Jinja2"
-                   implementationClass="com.dbthelper.codeintel.DbtAnnotator"/>
-        <annotator language="SQL"
-                   implementationClass="com.dbthelper.codeintel.DbtAnnotator"/>
+        <externalAnnotator language="TEXT"
+                           implementationClass="com.dbthelper.codeintel.DbtExternalAnnotator"/>
+        <externalAnnotator language="Jinja2"
+                           implementationClass="com.dbthelper.codeintel.DbtExternalAnnotator"/>
+        <externalAnnotator language="SQL"
+                           implementationClass="com.dbthelper.codeintel.DbtExternalAnnotator"/>
 
         <gotoDeclarationHandler implementation="com.dbthelper.codeintel.DbtGotoDeclarationHandler"/>
 

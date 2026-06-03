@@ -120,6 +120,12 @@ class ManifestService(private val project: Project) : Disposable {
             val catalogParser = project.service<CatalogParser>()
             index = catalogParser.mergeCatalog(index)
 
+            val (modelNames, sourceKeys) = ManifestIndex.buildLookups(index.nodes, index.sources)
+            index = index.copy(
+                resolvableModelNames = modelNames,
+                resolvableSourceKeys = sourceKeys
+            )
+
             cachedIndex = index
             logger.info("dbt manifest parsed: ${index.modelCount} models, ${index.sourceCount} sources")
 
