@@ -144,6 +144,8 @@ for <a href="https://www.getdbt.com/">dbt</a> projects directly into your JetBra
 
         <!-- Notifications -->
         <notificationGroup id="dbt Helper" displayType="BALLOON"/>
+
+        <projectActivity implementation="com.dbthelper.startup.ManifestStartupActivity"/>
     </extensions>
 
     <actions>
