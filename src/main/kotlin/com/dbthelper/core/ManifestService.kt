@@ -10,6 +10,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
+import java.util.Collections
 import kotlinx.coroutines.*
 
 @Service(Service.Level.PROJECT)
@@ -32,7 +33,26 @@ class ManifestService(private val project: Project) : Disposable {
     var isLoading: Boolean = false
         private set
 
+    @Volatile
+    private var manifestFile: VirtualFile? = null
+
+    private val sqlCache = Collections.synchronizedMap(
+        object : LinkedHashMap<String, NodeSql>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, NodeSql>?): Boolean =
+                size > 32
+        }
+    )
+
     fun getIndex(): ManifestIndex = cachedIndex
+
+    /** Loads raw/compiled SQL for [nodeId] from manifest.json (cached, not kept on [DbtNode]). */
+    fun getNodeSql(nodeId: String): NodeSql {
+        val file = manifestFile ?: return NodeSql.EMPTY
+        sqlCache[nodeId]?.let { return it }
+        val sql = ManifestSqlReader.readNodeSql(file, nodeId)
+        sqlCache[nodeId] = sql
+        return sql
+    }
 
     fun getLocator(): DbtProjectLocator = locator
 
@@ -50,6 +70,8 @@ class ManifestService(private val project: Project) : Disposable {
             val dbtRoots = locator.findAllDbtRoots()
             if (dbtRoots.isEmpty()) {
                 cachedIndex = ManifestIndex.EMPTY
+                manifestFile = null
+                sqlCache.clear()
                 lastError = "No dbt projects found"
                 return
             }
@@ -59,14 +81,18 @@ class ManifestService(private val project: Project) : Disposable {
             }
             if (allManifests.isEmpty()) {
                 cachedIndex = ManifestIndex.EMPTY
+                manifestFile = null
+                sqlCache.clear()
                 lastError = "manifest.json not found"
                 return
             }
 
             // Merge all manifests — for now just parse the first one
             // TODO: support multi-project manifest merging
-            val manifestFile = allManifests.first()
-            val root = manifestFile.inputStream.use { mapper.readTree(it) }
+            val parsedManifestFile = allManifests.first()
+            manifestFile = parsedManifestFile
+            sqlCache.clear()
+            val root = parsedManifestFile.inputStream.use { mapper.readTree(it) }
 
             val nodes = parseNodes(root.get("nodes"))
             val sources = parseSources(root.get("sources"))
@@ -180,8 +206,6 @@ class ManifestService(private val project: Project) : Disposable {
                 dependsOnNodes = node.path("depends_on").path("nodes").map { it.asText() },
                 dependsOnMacros = node.path("depends_on").path("macros").map { it.asText() },
                 tags = node.path("tags").map { it.asText() },
-                rawCode = node.path("raw_code").asText(null) ?: node.path("raw_sql").asText(null),
-                compiledCode = node.path("compiled_code").asText(null) ?: node.path("compiled_sql").asText(null),
                 config = configMap,
                 fqn = node.path("fqn").map { it.asText() },
                 patchPath = node.path("patch_path").asText(null)

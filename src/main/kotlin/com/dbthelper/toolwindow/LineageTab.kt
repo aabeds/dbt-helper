@@ -306,7 +306,8 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                 if (isDisposed) return@executeOnPooledThread
                 val service = ManifestService.getInstance(project)
                 val index = service.getIndex()
-                val payload = DocsPayloadBuilder.build(nodeId, index) ?: return@executeOnPooledThread
+                val sql = service.getNodeSql(nodeId)
+                val payload = DocsPayloadBuilder.build(nodeId, index, sql) ?: return@executeOnPooledThread
                 val json = mapper.writeValueAsString(payload)
                 val escaped = json.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
                 ApplicationManager.getApplication().invokeLater {
