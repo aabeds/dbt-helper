@@ -50,6 +50,9 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
     // Expanded boundary nodes (not persisted to settings)
     private val expandedBoundaryNodes = mutableSetOf<String>()
 
+    @Volatile
+    private var lastDocsSidebarNodeId: String? = null
+
     init {
         Disposer.register(parentDisposable, this)
 
@@ -66,6 +69,7 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
             override fun onManifestUpdated(index: ManifestIndex) {
                 resolveCurrentModel()
                 refreshGraph()
+                currentModelId?.let { pushDocsToSidebar(it, force = true) }
                 pushRegenerateAttention()
             }
         })
@@ -107,6 +111,7 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                     "ready" -> {
                         isPageReady = true
                         refreshGraph()
+                        currentModelId?.let { pushDocsToSidebar(it) }
                     }
                     "nodeClick" -> {
                         val nodeId = payload.path("nodeId").asText()
@@ -152,6 +157,7 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
 
                     resolveCurrentModel()
                     refreshGraph()
+                    currentModelId?.let { pushDocsToSidebar(it) }
                     pushRegenerateAttention()
                 }
             }
@@ -217,6 +223,7 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                 currentModelId = modelId
                 expandedBoundaryNodes.clear()
                 refreshGraph()
+                pushDocsToSidebar(modelId)
             }
         } else if (modelId != null && modelId == currentModelId) {
             ApplicationManager.getApplication().invokeLater {
@@ -256,9 +263,6 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                 logger.warn("Error building lineage graph", e)
             }
         }
-
-        // Update sidebar to reflect current model
-        pushDocsToSidebar(modelId)
     }
 
     private fun applyCurrentTheme() {
@@ -299,8 +303,9 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
         }
     }
 
-    private fun pushDocsToSidebar(nodeId: String) {
+    private fun pushDocsToSidebar(nodeId: String, force: Boolean = false) {
         if (isDisposed) return
+        if (!force && nodeId == lastDocsSidebarNodeId) return
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 if (isDisposed) return@executeOnPooledThread
@@ -310,7 +315,10 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                 val payload = DocsPayloadBuilder.build(nodeId, index, sql) ?: return@executeOnPooledThread
                 val json = mapper.writeValueAsString(payload)
                 ApplicationManager.getApplication().invokeLater {
-                    if (!isDisposed) deliverJsonToJs("showDocs", json)
+                    if (!isDisposed) {
+                        deliverJsonToJs("showDocs", json)
+                        lastDocsSidebarNodeId = nodeId
+                    }
                 }
             } catch (e: Exception) {
                 logger.warn("Error building docs payload", e)
