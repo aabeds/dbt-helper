@@ -27,6 +27,7 @@ import com.intellij.ide.ui.LafManagerListener
 import org.cef.browser.CefBrowser
 import org.cef.handler.CefLoadHandlerAdapter
 import java.awt.BorderLayout
+import java.util.Base64
 import javax.swing.JPanel
 import javax.swing.UIManager
 
@@ -247,10 +248,9 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                 ).copy(edgeCurveStyle = settings.state.edgeCurveStyle, layoutDirection = settings.state.layoutDirection)
 
                 val graphJson = mapper.writeValueAsString(graph)
-                val escaped = graphJson.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
 
                 ApplicationManager.getApplication().invokeLater {
-                    if (!isDisposed) executeJs("renderGraph('$escaped')")
+                    if (!isDisposed) deliverJsonToJs("renderGraph", graphJson)
                 }
             } catch (e: Exception) {
                 logger.warn("Error building lineage graph", e)
@@ -309,9 +309,8 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
                 val sql = service.getNodeSql(nodeId)
                 val payload = DocsPayloadBuilder.build(nodeId, index, sql) ?: return@executeOnPooledThread
                 val json = mapper.writeValueAsString(payload)
-                val escaped = json.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
                 ApplicationManager.getApplication().invokeLater {
-                    if (!isDisposed) executeJs("showDocs('$escaped')")
+                    if (!isDisposed) deliverJsonToJs("showDocs", json)
                 }
             } catch (e: Exception) {
                 logger.warn("Error building docs payload", e)
@@ -367,6 +366,12 @@ class LineageTab(private val project: Project, private val parentDisposable: Dis
         if (!isDisposed) {
             browser.cefBrowser.executeJavaScript(code, browser.cefBrowser.url, 0)
         }
+    }
+
+    /** Passes UTF-8 JSON via base64 (safe in JS string literals; no manual escape of graph/docs payloads). */
+    private fun deliverJsonToJs(functionName: String, json: String) {
+        val b64 = Base64.getEncoder().encodeToString(json.toByteArray(Charsets.UTF_8))
+        executeJs("window.__dbtJsonDeliver('$functionName','$b64')")
     }
 
     private fun escapeJs(s: String): String = s.replace("\\", "\\\\").replace("'", "\\'")

@@ -612,6 +612,22 @@
 
     // === Public API (called from Kotlin) ===
 
+    function decodeBase64Utf8(b64) {
+        var binary = atob(b64);
+        var bytes = new Uint8Array(binary.length);
+        for (var i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    /** Large payloads from Kotlin (base64 UTF-8 JSON — avoids escaping huge strings in executeJavaScript). */
+    window.__dbtJsonDeliver = function (fn, b64) {
+        var data = JSON.parse(decodeBase64Utf8(b64));
+        if (fn === 'renderGraph') window.renderGraph(data);
+        else if (fn === 'showDocs') window.showDocs(data);
+    };
+
     window.renderGraph = function (jsonStr) {
         try {
             const graph = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
