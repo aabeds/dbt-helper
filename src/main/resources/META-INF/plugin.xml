@@ -104,7 +104,11 @@ for <a href="https://www.getdbt.com/">dbt</a> projects directly into your JetBra
                 displayName="dbt Helper"/>
 
         <!-- Code Intelligence (TEXT = IntelliJ IDEA, Jinja2/SQL = DataSpell/PyCharm) -->
-        <completion.contributor language="any"
+        <completion.contributor language="TEXT"
+                               implementationClass="com.dbthelper.codeintel.DbtCompletionContributor"/>
+        <completion.contributor language="Jinja2"
+                               implementationClass="com.dbthelper.codeintel.DbtCompletionContributor"/>
+        <completion.contributor language="SQL"
                                implementationClass="com.dbthelper.codeintel.DbtCompletionContributor"/>
 
         <psi.referenceContributor language="TEXT"
